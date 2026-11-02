@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Kismetra – ড্যাশবোর্ড</title>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">
+<!--
+=========== একবারের সেটআপ ===========
+১) supabase.com এ ফ্রি প্রজেক্ট খুলুন → SQL Editor এ রান করুন:
+
+create table events(id bigserial primary key, at timestamptz default now(), ev text, sid text, lang text, gender text, country text, looking text, device text);
+alter table events enable row level security;
+create policy "ins" on events for insert to anon with check (true);
+create policy "sel" on events for select to authenticated using (true);
+
+২) Authentication → Users → Add user: runuk999@gmail.com + একটা শক্ত পাসওয়ার্ড (Auto confirm চালু রাখুন)।
+৩) Authentication → Sign In / Providers → "Allow new users to sign up" বন্ধ করুন (না হলে যে কেউ সাইন-আপ করে ডেটা দেখতে পারবে)।
+৪) Settings → API থেকে URL ও anon key নিচের CFG তে এবং kismetra.html এর SB তে বসান।
+-->
+<style>
+*{box-sizing:border-box;margin:0}body{font-family:'Hind Siliguri',system-ui,sans-serif;background:#eef2f6;color:#0b1f3a;padding:16px}
+.w{max-width:760px;margin:0 auto}h1{font-size:22px;margin-bottom:12px}
+.card{background:#fff;border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 2px 10px rgba(11,31,58,.07)}
+input,select,button{font:inherit;padding:11px;border-radius:10px;border:1.5px solid #cfdbe6;width:100%;margin-top:8px}
+button{background:#0f9d8f;color:#fff;border:0;font-weight:700;cursor:pointer}
+.k{display:grid;grid-template-columns:1fr 1fr;gap:10px}.k div{background:#fff;border-radius:14px;padding:12px;text-align:center;box-shadow:0 2px 10px rgba(11,31,58,.07)}
+.k b{display:block;font-size:26px;color:#0f9d8f}.k span{font-size:13px;color:#5d6f85}
+.r{display:flex;align-items:center;gap:8px;font-size:14px;margin:6px 0}.r em{font-style:normal;width:110px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.r i{display:block;height:10px;background:#0f9d8f;border-radius:6px;min-width:3px}.r b{font-size:13px;margin-left:auto}
+h3{font-size:16px;margin-bottom:6px}table{width:100%;font-size:12.5px;border-collapse:collapse}td{padding:5px 3px;border-top:1px solid #eef2f6}
+.top{display:flex;gap:8px}.top select{margin:0}.top button{width:90px;margin:0}
+</style></head><body><div class="w">
+<h1>📊 Kismetra ড্যাশবোর্ড</h1>
+<div class="card" id="lg"><b>লগইন</b><input id="em" value="runuk999@gmail.com" type="email"><input id="pw" type="password" placeholder="পাসওয়ার্ড"><button id="in">ঢোকো</button><p id="er" style="color:#c00;font-size:13px;margin-top:6px"></p></div>
+<div id="app" style="display:none">
+  <div class="top"><select id="dy"><option value="1">আজ</option><option value="7" selected>৭ দিন</option><option value="30">৩০ দিন</option><option value="90">৯০ দিন</option></select><button id="rf">রিফ্রেশ</button></div><br>
+  <div class="k" id="kp"></div><br>
+  <div class="card"><h3>দিনভিত্তিক ভিজিট ও সার্চ</h3><div id="ch"></div></div>
+  <div class="card"><h3>🌍 জনপ্রিয় দেশ (সার্চ)</h3><div id="co"></div></div>
+  <div class="card"><h3>🚻 কে সার্চ করেছে</h3><div id="ge"></div></div>
+  <div class="card"><h3>💘 কী খুঁজেছে</h3><div id="lk"></div></div>
+  <div class="card"><h3>🗣️ ভাষা</h3><div id="la"></div></div>
+  <div class="card"><h3>📱 ডিভাইস</h3><div id="de"></div></div>
+  <div class="card"><h3>🕒 সর্বশেষ কার্যক্রম</h3><div style="overflow:auto"><table id="rc"></table></div></div>
+</div></div>
+<script>
+const CFG={url:"",key:""};
+const $=s=>document.querySelector(s);
+const bn=n=>String(n).replace(/\d/g,d=>'০১২৩৪৫৬৭৮৯'[d]);
+const GN={m:'ছেলে',f:'মেয়ে',o:'অন্যান্য'},LK=['রোমান্টিক','বেস্ট ফ্রেন্ড','জীবনসঙ্গী','ভ্রমণসঙ্গী','পড়ার সঙ্গী'],EV={visit:'ভিজিট',lang:'ভাষা বাছাই',search:'সার্চ',reveal:'প্র্যাঙ্ক',share:'শেয়ার'};
+let tok=sessionStorage.getItem('k_tok')||'';
+async function login(){
+  $('#er').textContent='';
+  try{const r=await fetch(CFG.url+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:CFG.key,'Content-Type':'application/json'},body:JSON.stringify({email:$('#em').value,password:$('#pw').value})});
+    const j=await r.json();if(!j.access_token)throw 0;tok=j.access_token;sessionStorage.setItem('k_tok',tok);open_()}
+  catch(e){$('#er').textContent='লগইন হয়নি। ইমেইল/পাসওয়ার্ড বা CFG চেক করুন।'}
+}
+function open_(){$('#lg').style.display='none';$('#app').style.display='block';load()}
+async function load(){
+  const days=+$('#dy').value,since=new Date(Date.now()-days*864e5).toISOString();let all=[];
+  for(let o=0;o<10000;o+=1000){
+    const r=await fetch(CFG.url+'/rest/v1/events?select=at,ev,sid,lang,gender,country,looking,device&at=gte.'+since+'&order=at.desc&limit=1000&offset='+o,{headers:{apikey:CFG.key,Authorization:'Bearer '+tok}});
+    if(r.status===401){sessionStorage.removeItem('k_tok');location.reload();return}
+    const j=await r.json();all=all.concat(j);if(j.length<1000)break}
+  render(all)
+}
+function bars(id,map,total){
+  const e=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,10),m=e.length?e[0][1]:1;
+  $(id).innerHTML=e.length?e.map(([k,v])=>`<div class="r"><em>${k}</em><i style="width:${v/m*55}%"></i><b>${bn(v)}${total?' ('+bn(Math.round(v/total*100))+'%)':''}</b></div>`).join(''):'<p style="color:#889;font-size:13px">এখনো ডেটা নেই</p>'}
+function count(a,f){const m={};a.forEach(x=>{const k=f(x);if(k!=null)m[k]=(m[k]||0)+1});return m}
+function render(a){
+  const vis=a.filter(x=>x.ev==='visit'),se=a.filter(x=>x.ev==='search'),rv=a.filter(x=>x.ev==='reveal'),sh=a.filter(x=>x.ev==='share');
+  const uniq=new Set(vis.map(x=>x.sid)).size;
+  $('#kp').innerHTML=[[vis.length,'মোট ভিজিট'],[uniq,'ইউনিক ভিজিটর'],[se.length,'সার্চ (ক্লিক)'],[vis.length?Math.round(se.length/vis.length*100)+'%':'০%','ক্লিক রেট'],[rv.length,'প্র্যাঙ্ক সম্পন্ন'],[sh.length,'শেয়ার লিংক']].map(([v,l])=>`<div><b>${typeof v==='number'?bn(v):bn(v)}</b><span>${l}</span></div>`).join('');
+  // দিনভিত্তিক
+  const dv=count(vis,x=>x.at.slice(0,10)),ds=count(se,x=>x.at.slice(0,10)),days=[];
+  for(let i=13;i>=0;i--)days.push(new Date(Date.now()-i*864e5).toISOString().slice(0,10));
+  const mx=Math.max(1,...days.map(d=>dv[d]||0));
+  $('#ch').innerHTML=days.map(d=>`<div class="r"><em>${bn(d.slice(5))}</em><i style="width:${(dv[d]||0)/mx*50}%"></i><b>${bn(dv[d]||0)} / ${bn(ds[d]||0)}</b></div>`).join('')+'<p style="font-size:12px;color:#5d6f85">ভিজিট / সার্চ</p>';
+  bars('#co',count(se,x=>x.country||'যেকোনো দেশ'),se.length);
+  bars('#ge',count(se,x=>GN[x.gender]||'—'),se.length);
+  bars('#lk',count(se,x=>LK[+x.looking]||'—'),se.length);
+  bars('#la',count(vis,x=>x.lang==='bn'?'বাংলা':x.lang==='en'?'English':'—'),vis.length);
+  bars('#de',count(vis,x=>x.device==='mobile'?'মোবাইল':'ডেস্কটপ'),vis.length);
+  $('#rc').innerHTML=a.slice(0,15).map(x=>`<tr><td>${new Date(x.at).toLocaleString('bn-BD',{hour12:true,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</td><td><b>${EV[x.ev]||x.ev}</b></td><td>${x.country||''} ${GN[x.gender]||''}</td><td>${x.device==='mobile'?'📱':'💻'}</td></tr>`).join('')
+}
+$('#in').onclick=login;$('#pw').onkeydown=e=>{if(e.key==='Enter')login()};
+$('#rf').onclick=load;$('#dy').onchange=load;
+if(tok&&CFG.url)open_();
+</script></body></html>
